@@ -25,3 +25,47 @@ dependencies {
 		exclude group: "commons-logging", module: "commons-logging"
 	}
 }
+
+apply plugin: 'maven-publish'
+apply plugin: 'maven-publish-auth'
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			pom.withXml {
+				asNode().dependencies.'*'.findAll() {
+					it.scope.text() == 'runtime' && project.configurations.provided.allDependencies.find { dep ->
+						dep.name == it.artifactId.text()
+					}
+				}.each() {
+					it.scope*.value = 'provided'
+				}
+			}
+
+			pom.withXml {
+				asNode().dependencies.'*'.findAll() {
+					it.scope.text() == 'runtime' && project.configurations.compile.allDependencies.find { dep ->
+						dep.name == it.artifactId.text()
+					}
+				}.each() {
+					it.scope*.value = 'compile'
+				}
+			}
+
+			from components.java
+
+			artifact sourcesJar {
+				classifier "sources"
+			}
+		}
+	}
+}
+
+publishing {
+	repositories {
+		maven {
+			name "kzoinnovations-releases"
+			url "https://nexus.kzoinnovations.com/nexus/content/repositories/kzoinnovations-releases/"
+		}
+	}
+}
