@@ -15,6 +15,7 @@
  */
 package org.springframework.security.saml.util;
 
+import org.apache.commons.lang.BooleanUtils;
 import org.joda.time.DateTime;
 import org.opensaml.common.SAMLException;
 import org.opensaml.common.SAMLRuntimeException;
@@ -62,6 +63,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utility class for SAML entities
@@ -74,6 +76,11 @@ public class SAMLUtil {
 
     /** The URIComparator implementation to use. */
     private static final URIComparator DEFAULT_URI_COMPARATOR = new DefaultURLComparator();
+
+    /**
+     * Key to control enable control of session age
+     */
+    public static final String SESSION_AGE_CHECK_KEY = "spring-SAML.check.session.age";
 
     /**
      * Method determines binding supported by the given endpoint. Usually the biding is encoded in the binding attribute
@@ -513,9 +520,28 @@ public class SAMLUtil {
      * @return true if time matches, false otherwise
      */
     public static boolean isDateTimeSkewValid(int skewInSec, long forwardInterval, DateTime time) {
-        long reference = System.currentTimeMillis();
-        return time.isBefore(reference + (skewInSec * 1000)) && time.isAfter(reference - ((skewInSec + forwardInterval) * 1000));
+        boolean considerAge = BooleanUtils.toBoolean(System.getProperty(SESSION_AGE_CHECK_KEY, "true"));
+        return isDateTimeSkewValid(skewInSec, forwardInterval, time, considerAge);
     }
+
+    /**
+     * Verifies that the current time fits into interval defined by time minus backwardInterval minus skew and time plus forward interval plus skew.
+     *
+     *
+     * @param skewInSec skew interval in seconds
+     * @param forwardInterval forward interval in sec
+     * @param time time the current time must fit into with the given skew
+     * @param considerAge flag if set - then we have to consider the age of the session, if it's too old - exception is thrown
+     * @return true if time matches, false otherwise
+     */
+    public static boolean isDateTimeSkewValid(int skewInSec, long forwardInterval, DateTime time, boolean considerAge) {
+        long reference = System.currentTimeMillis();
+        if (!time.isBefore(reference + TimeUnit.SECONDS.toMillis(skewInSec))){
+            return false;
+        }
+        return considerAge && time.isAfter(reference - TimeUnit.SECONDS.toMillis(skewInSec + forwardInterval));
+    }
+
 
     /**
      * Method replaces all characters which are not allowed in xsd:NCName type with underscores. It also makes sure
