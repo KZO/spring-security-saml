@@ -521,6 +521,7 @@ public class SAMLUtil {
      */
     public static boolean isDateTimeSkewValid(int skewInSec, long forwardInterval, DateTime time) {
         boolean considerAge = BooleanUtils.toBoolean(System.getProperty(SESSION_AGE_CHECK_KEY, "true"));
+        logger.trace(SESSION_AGE_CHECK_KEY+" value is "+considerAge);
         return isDateTimeSkewValid(skewInSec, forwardInterval, time, considerAge);
     }
 
@@ -539,7 +540,10 @@ public class SAMLUtil {
         if (!time.isBefore(reference + TimeUnit.SECONDS.toMillis(skewInSec))){
             return false;
         }
-        return considerAge && time.isAfter(reference - TimeUnit.SECONDS.toMillis(skewInSec + forwardInterval));
+        if (!considerAge){
+            return true;
+        }
+        return time.isAfter(reference - TimeUnit.SECONDS.toMillis(skewInSec + forwardInterval));
     }
 
 
